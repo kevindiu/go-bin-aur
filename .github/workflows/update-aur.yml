@@ -1,0 +1,73 @@
+name: Update AUR package
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update Go package metadata
+        run: ./scripts/update-go-bin.sh
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet -- PKGBUILD .SRCINFO; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git author
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "AUR automation"
+          git config user.email "actions@github.com"
+
+      - name: Commit changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          version="$(grep -E '^pkgver=' PKGBUILD | cut -d= -f2-)"
+          version="${version//[[:space:]]/}"
+          git add PKGBUILD .SRCINFO
+          git commit -m "chore: update go-bin to ${version}"
+
+      - name: Push changes to GitHub
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: git push origin HEAD:main
+
+      - name: Configure SSH for AUR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          if [[ -z "${AUR_SSH_PRIVATE_KEY}" ]]; then
+            echo "AUR_SSH_PRIVATE_KEY secret is not set" >&2
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${AUR_SSH_PRIVATE_KEY}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          cat >> ~/.ssh/config <<'EOF'
+Host aur.archlinux.org
+  User aur
+  IdentityFile ~/.ssh/aur
+  IdentitiesOnly yes
+EOF
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+      - name: Push changes to AUR
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git remote add aur ssh://aur@aur.archlinux.org/go-bin.git 2>/dev/null || \
+            git remote set-url aur ssh://aur@aur.archlinux.org/go-bin.git
+          git push aur HEAD:master
