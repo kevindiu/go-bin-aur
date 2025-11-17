@@ -16,13 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Sync with AUR upstream
-        run: |
-          git remote add aur-upstream https://aur.archlinux.org/go-bin.git 2>/dev/null || \
-            git remote set-url aur-upstream https://aur.archlinux.org/go-bin.git
-          git fetch aur-upstream master
-          git merge --ff-only aur-upstream/master
-
       - name: Update Go package metadata
         run: ./scripts/update-go-bin.sh
 
@@ -78,6 +71,18 @@ jobs:
       - name: Push changes to AUR
         if: steps.changes.outputs.changed == 'true'
         run: |
-          git remote add aur ssh://aur@aur.archlinux.org/go-bin.git 2>/dev/null || \
-            git remote set-url aur ssh://aur@aur.archlinux.org/go-bin.git
-          git push aur HEAD:master
+          git clone ssh://aur@aur.archlinux.org/go-bin.git aur-clone
+          cp PKGBUILD aur-clone/PKGBUILD
+          cp .SRCINFO aur-clone/.SRCINFO
+          cd aur-clone
+          git config user.name "kevindiu"
+          git config user.email "kevindiujp@gmail.com"
+          if git diff --quiet -- PKGBUILD .SRCINFO; then
+            echo "No changes to push to AUR"
+            exit 0
+          fi
+          version="$(grep -E '^pkgver=' PKGBUILD | cut -d= -f2-)"
+          version="${version//[[:space:]]/}"
+          git add PKGBUILD .SRCINFO
+          git commit -m "chore: update go-bin to ${version}"
+          git push origin HEAD:master
