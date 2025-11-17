@@ -58,11 +58,11 @@ jobs:
           printf '%s\n' "${AUR_SSH_PRIVATE_KEY}" > ~/.ssh/aur
           chmod 600 ~/.ssh/aur
           cat >> ~/.ssh/config <<'EOF'
-Host aur.archlinux.org
-  User aur
-  IdentityFile ~/.ssh/aur
-  IdentitiesOnly yes
-EOF
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            IdentitiesOnly yes
+          EOF
           ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
       - name: Push changes to AUR
