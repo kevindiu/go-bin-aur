@@ -16,6 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Sync with AUR upstream
+        run: |
+          git remote add aur-upstream https://aur.archlinux.org/go-bin.git 2>/dev/null || \
+            git remote set-url aur-upstream https://aur.archlinux.org/go-bin.git
+          git fetch aur-upstream master
+          git merge --ff-only aur-upstream/master
+
       - name: Update Go package metadata
         run: ./scripts/update-go-bin.sh
 
