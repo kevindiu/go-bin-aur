@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          pacman -Sy --noconfirm pacman-contrib git openssh
+          pacman -Syu --noconfirm pacman-contrib git openssh
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -94,12 +94,11 @@ jobs:
             IdentityFile ~/.ssh/aur
             IdentitiesOnly yes
           EOF
-          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
       - name: Push changes to AUR
         if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == true
         run: |
-          git clone ssh://aur@aur.archlinux.org/go-bin.git aur-clone
+          GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone ssh://aur@aur.archlinux.org/go-bin.git aur-clone
           cp PKGBUILD aur-clone/PKGBUILD
           cp .SRCINFO aur-clone/.SRCINFO
           cd aur-clone
