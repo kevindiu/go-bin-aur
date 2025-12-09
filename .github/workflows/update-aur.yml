@@ -11,18 +11,38 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    container: archlinux:base-devel
 
     steps:
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm pacman-contrib git openssh
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Create builder user
+        run: |
+          useradd -m builder
+          chown -R builder:builder .
 
       - name: Update Go package metadata
-        run: ./scripts/update-go-bin.sh
+        run: |
+          # script runs updpkgsums and makepkg, which cannot run as root.
+          # We execute as 'builder' user.
+          su builder -c "./scripts/update-go-bin.sh"
 
       - name: Detect changes
         id: changes
         run: |
-          if git diff --quiet -- PKGBUILD .SRCINFO; then
+          # Need to run git commands as original user/root or ensuring permissions
+          # But we changed ownership to builder. Let's create diff as builder.
+          if su builder -c "git diff --quiet -- PKGBUILD .SRCINFO"; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -31,12 +51,14 @@ jobs:
       - name: Configure git author
         if: steps.changes.outputs.changed == 'true'
         run: |
-          git config user.name "kevindiu"
-          git config user.email "kevindiujp@gmail.com"
+          git config --global user.name "kevindiu"
+          git config --global user.email "kevindiujp@gmail.com"
 
       - name: Commit changes
         if: steps.changes.outputs.changed == 'true'
         run: |
+          # We can commit as root (container default user) but need to handle ownership or just run as is
+          # Since we set safe.directory, running as root should be fine even if owned by builder
           version="$(grep -E '^pkgver=' PKGBUILD | cut -d= -f2-)"
           version="${version//[[:space:]]/}"
           git add PKGBUILD .SRCINFO
@@ -65,8 +87,8 @@ jobs:
             User aur
             IdentityFile ~/.ssh/aur
             IdentitiesOnly yes
+            StrictHostKeyChecking off
           EOF
-          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
       - name: Push changes to AUR
         if: steps.changes.outputs.changed == 'true'
@@ -78,8 +100,8 @@ jobs:
           git config user.name "kevindiu"
           git config user.email "kevindiujp@gmail.com"
           if git diff --quiet -- PKGBUILD .SRCINFO; then
-            echo "No changes to push to AUR"
-            exit 0
+             echo "No changes to push to AUR"
+             exit 0
           fi
           version="$(grep -E '^pkgver=' PKGBUILD | cut -d= -f2-)"
           version="${version//[[:space:]]/}"

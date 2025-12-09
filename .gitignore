@@ -1,0 +1,9 @@
+# Build artifacts
+*.tar.gz
+*.tar.xz
+src/
+pkg/
+go/
+
+# Temp files
+*.part
