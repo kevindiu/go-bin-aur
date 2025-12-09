@@ -93,8 +93,8 @@ jobs:
             User aur
             IdentityFile ~/.ssh/aur
             IdentitiesOnly yes
-            StrictHostKeyChecking off
           EOF
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
       - name: Push changes to AUR
         if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == true
