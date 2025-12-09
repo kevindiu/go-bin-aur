@@ -77,7 +77,7 @@ jobs:
         run: git push origin HEAD:main
 
       - name: Configure SSH for AUR
-        if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == 'true'
+        if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == true
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
         run: |
@@ -97,7 +97,7 @@ jobs:
           EOF
 
       - name: Push changes to AUR
-        if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == 'true'
+        if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == true
         run: |
           git clone ssh://aur@aur.archlinux.org/go-bin.git aur-clone
           cp PKGBUILD aur-clone/PKGBUILD
