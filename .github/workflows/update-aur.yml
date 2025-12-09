@@ -98,7 +98,8 @@ jobs:
       - name: Push changes to AUR
         if: steps.changes.outputs.changed == 'true' || inputs.force_update_aur == true
         run: |
-          GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o StrictHostKeyChecking=no" git clone ssh://aur@aur.archlinux.org/go-bin.git aur-clone
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o StrictHostKeyChecking=no"
+          git clone ssh://aur@aur.archlinux.org/go-bin.git aur-clone
           cp PKGBUILD aur-clone/PKGBUILD
           cp .SRCINFO aur-clone/.SRCINFO
           cd aur-clone
